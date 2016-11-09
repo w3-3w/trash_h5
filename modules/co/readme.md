@@ -9,7 +9,7 @@ Completely the same as co!
 ## Restrictions
 
 * Generators only
-* `Promise` yields only
+* yields other than `Promise`s will be returned as itself
 
 ## Example
 

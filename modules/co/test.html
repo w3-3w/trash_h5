@@ -3,6 +3,7 @@
 <title>promiseTest</title>
 </head>
 <body>
+<p>Open your developer tools and watch the console.</p>
 <script src="./index.js"></script>
 <!-- Uncaught ReferenceError: module is not defined will be throwed if runs in browsers -->
 <script>
@@ -47,6 +48,9 @@ co(function*(){
 			})
 		]);
 		console.log(z);
+		
+		const c = yield {obj: 'itself'};
+		console.log(c);
 		
 		const e = yield new Promise(function(resolve, reject){
 			window.setTimeout(function(){

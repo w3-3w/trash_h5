@@ -1,16 +1,24 @@
 function co(gen) {
-	function execPointer(err, v, p) {
+	const p = gen();
+	function execPointer(err, v) {
 		const pResult = err ? p.throw(err) : p.next(v);
 		if (!(pResult.done)) {
-			const promise = pResult.value;
-			promise.then(function(result){
-				execPointer(null, result, p);
-			}, function(error){
-				execPointer(error, null, p);
-			});
+			const pResultValue = pResult.value;
+			// Is yield a Promise?
+			if (pResultValue instanceof Promise) {
+				// If so, deal with the Promise
+				pResultValue.then(function(result){
+					execPointer(null, result);
+				}, function(error){
+					execPointer(error);
+				});
+			} else {
+				// If not, return the value itself
+				execPointer(null, pResultValue);
+			}
 		}
 	}
-	execPointer(null, null, gen());
+	execPointer();
 }
 
 module.exports = co;
