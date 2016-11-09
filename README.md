@@ -3,3 +3,4 @@ My little code collection of HTML/JavaScript.
 Including:
 * Minigames
 * Questions
+* Modules
