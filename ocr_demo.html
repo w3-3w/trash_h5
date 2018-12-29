@@ -1,0 +1,276 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="content-type" charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1">
+    <title>智掌柜OCR DEMO</title>
+    <style>
+      body, html, section, ul, ol, li, p, table, th, td {
+        margin: 0px;
+        padding: 0px;
+      }
+      html {
+        font-family: sans-serif;
+        -ms-text-size-adjust: 100%;
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        background: #f4f5f6;
+      }
+      a {
+        color: #20AEE5;
+        cursor: pointer;
+      }
+      a:active{
+        background: #f8f8f8;
+        border-radius: 2px;
+      }
+      ul, ol {
+        list-style: none;
+      }
+      table, th, td, tr {
+        border: none;
+        border-spacing: 0;
+      }
+      /*--------
+      Layout
+      --------*/
+      #app {
+        padding-bottom: 72px;
+      }
+      #app > div {
+        padding: 24px;
+      }
+      .header {
+        width: 100%;
+        background: #ffffff;
+        box-shadow: 0 2px 2px #cccccc;
+        text-align: center;
+        box-sizing: border-box;
+      }
+      .section {
+        width: 960px;
+        margin: 32px auto 0;
+        background: #ffffff;
+        box-sizing: border-box;
+      }
+      @media (max-width: 567px) {
+        .section {
+          width: 100%;
+        }
+      }
+      /*--------
+      Parts
+      --------*/
+      .segmented-control_item {
+        padding: 8px;
+        display: inline-block;
+      }
+      .form-group {
+        width: 100%;
+        display: table;
+      }
+      @media (max-width: 567px) {
+        .form-group {
+          display: block;
+        }
+      }
+      .form-group:first-child {
+        border-top: #cccccc;
+      }
+      .form-header, .form-body {
+        display: table-cell;
+        vertical-align: top;
+      }
+      @media (max-width: 567px) {
+        .form-header, .form-body {
+          display: block;
+        }
+      }
+      .form-header {
+        width: 200px;
+      }
+      @media (max-width: 567px) {
+        .form-header {
+          width: 100%;
+        }
+      }
+      .form-control {
+        margin: 16px 0 0;
+        padding: 16px;
+        background: #F4F5F6;
+        border-radius: 4px;
+      }
+      .label {
+        margin-left: 8px;
+        padding: 4px 8px;
+        background: #FC6356;
+        border-radius: 4px;
+        color: #ffffff;
+        font-size: 14px;
+      }
+      .attention {
+        margin: 16px 0 0;
+        font-size: 14px;
+      }
+      .preview {
+        margin: 16px 0 0;
+      }
+      .preview > img {
+        max-width: auto;
+        max-height: 400px;
+      }
+      table {
+        margin: 16px 0 ;
+        width: 100%;
+        border-top: 1px solid #cccccc;
+      }
+      table th, table td {
+        padding: 16px;
+      }
+      table th,
+      table td {
+        border-bottom: 1px solid #cccccc;
+      }
+      table thead {
+        text-align: left;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  </head>
+  <body>
+    <main id="app">
+      <div class="lang header">
+        <ul class="segmented-control">
+          <li class="segmented-control_item">
+            <input type="radio" id="lang-cn" name="lang" value="cn" v-model="lang">
+            <label for="lang-cn">简体中文</label>
+          </li>
+          <li class="segmented-control_item">
+            <input type="radio" id="lang-jp" name="lang" value="jp" v-model="lang">
+            <label for="lang-jp">日本語</label>
+          </li>
+        </ul>
+      </div>
+      <div class="pic form section">
+        <div class="form-group">
+          <div class="form-header">
+            <label for="pic">{{ i('menuPic') }}
+              <span class="label">{{ i('required') }}</span>
+            </label>
+          </div>
+          <div class="form-body">
+            <div class="form-control">
+              <input type="file" name="pic" accept="image/jpeg, image/png" v-on:change="onPicChange($event)" v-bind:disabled="picData !== null && results === null">
+              <ul class="attention">
+                <li>{{ i('note1') }}</li>
+                <li>{{ i('note2') }}</li>
+              </ul>
+            </div>
+            <div class="preview" v-if="picData !== null">
+              <img id="img-pic" v-bind:src="picData" width="100" height="100">
+              <canvas id="canvas" style="display: none;"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="result section" v-if="results !== null">
+        <p>{{ i('titleResult') }}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>{{ i('menuName') }}</th>
+              <th>{{ i('menuPrice') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="result in results">
+              <td>{{ result[0] }}</td>
+              <td>{{ result[1] }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+    <script>
+      const IMG_LONG_SIDE = 1080;
+      const canvas = document.getElementById('canvas');
+      const canvasCtx = canvas.getContext('2d');
+      const lang = {
+        jp: {
+          errorMsg: 'OCR APIでエラーが発生しました。コンソールでエラー詳細を確認できます。',
+          menuPic: 'メニュー画像',
+          note1: '※JPGとPNG以外のファイルは選択できません。',
+          note2: '※画像がぼやけていると、読み込めない可能性があります。',
+          titleResult: 'スキャン結果を確認してください。',
+          menuName: 'メニュー名',
+          menuPrice: '金額',
+          required: '必須'
+        },
+        cn: {
+          errorMsg: '请求OCR API时发生错误。可在控制台查看详细错误信息。',
+          menuPic: '菜单图片',
+          note1: '※只能识别JPG或PNG格式的图片。',
+          note2: '※图片过于模糊时，可能会出现无法识别的情况。',
+          titleResult: '以下为识别结果。',
+          menuName: '菜单名',
+          menuPrice: '价格',
+          required: '必填'
+        }
+      };
+      const app = new Vue({
+        el: '#app',
+        data: {
+          lang: 'jp',
+          picData: null,
+          results: null
+        },
+        methods: {
+          i(key) {
+            return lang[this.lang][key];
+          },
+          onPicChange(e) {
+            this.picData = null;
+            this.results = null;
+            if (e.target.files[0]) {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const image = new Image();
+                image.onload = () => {
+                  let ratio, h, w;
+                  if (image.height > image.width) {
+                    ratio = IMG_LONG_SIDE / image.height;
+                    h = IMG_LONG_SIDE;
+                    w = image.width * ratio;
+                  } else {
+                    ratio = IMG_LONG_SIDE / image.width;
+                    h = image.height * ratio;
+                    w = IMG_LONG_SIDE;
+                  }
+                  canvas.height = h;
+                  canvas.width = w;
+                  canvasCtx.drawImage(image, 0, 0, w, h);
+                  this.picData = canvas.toDataURL('image/jpeg');
+                  axios.post('http://ocr.yeahka.com/order_identify', {
+                    cmd: 'ocr',
+                    'image_data': this.picData.slice('data:image/jpeg;base64,'.length)
+                  }).then((response) => {
+                    console.log(response);
+                    this.results = response.data.info;
+                  }).catch((err) => {
+                    console.error(err);
+                    alert(this.i('errorMsg'));
+                    this.picData = null;
+                  });
+                };
+                image.src = reader.result;
+              };
+              reader.readAsDataURL(e.target.files[0]);
+            }
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
